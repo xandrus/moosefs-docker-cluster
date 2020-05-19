@@ -1,18 +1,95 @@
 version: '2'
 services:
   mfsmaster:
-    image: moosefs/master  #use GitHub version
-    # build: ./moosefs-master  #use local version
+    build: ./moosefs-master
     container_name: "mfsmaster"
+    hostname: "mfsmaster"
+    command: "mfsmaster -f"
     networks:
       moosefsnet:
         ipv4_address: "172.20.0.2"
+    volumes:
+            - ./data/master/metadata:/var/lib/mfs
+            - ./data/master/config:/etc/mfs
+
+  mfscgi:
+    build: ./moosefs-cgi
+    container_name: "mfscgi"
+    command: "mfscgiserv -f"
+    links:
+      - mfsmaster
+    networks:
+      moosefsnet:
+        ipv4_address: "172.20.0.3"
     ports:
       - "9425:9425"
-  mfsclient:
-    image: moosefs/client  #use GitHub version
-    # build: ./moosefs-client  #use local version
-    container_name: "mfsclient"
+    depends_on:
+      - mfsmaster
+
+  mfschunkserver1:
+    build: ./moosefs-chunkserver
+    container_name: "mfschunkserver1"
+    links:
+      - mfsmaster
+    networks:
+      moosefsnet:
+        ipv4_address: "172.20.0.11"
+    volumes:
+            - ./data/cs1/hdd0:/mnt/hdd0
+            - ./data/cs1/metadata:/var/lib/mfs
+            - ./data/cs1/config:/etc/mfs
+    depends_on:
+      - mfsmaster
+
+  mfschunkserver2:
+    build: ./moosefs-chunkserver
+    container_name: "mfschunkserver2"
+    links:
+      - mfsmaster
+    networks:
+      moosefsnet:
+        ipv4_address: "172.20.0.12"
+    volumes:
+            - ./data/cs2/hdd0:/mnt/hdd0
+            - ./data/cs2/metadata:/var/lib/mfs
+            - ./data/cs2/config:/etc/mfs
+    depends_on:
+      - mfsmaster
+
+  mfschunkserver3:
+    build: ./moosefs-chunkserver
+    container_name: "mfschunkserver3"
+    links:
+      - mfsmaster
+    networks:
+      moosefsnet:
+        ipv4_address: "172.20.0.13"
+    volumes:
+            - ./data/cs3/hdd0:/mnt/hdd0
+            - ./data/cs3/metadata:/var/lib/mfs
+            - ./data/cs3/config:/etc/mfs
+    depends_on:
+      - mfsmaster
+
+  mfschunkserver4:
+    build: ./moosefs-chunkserver
+    container_name: "mfschunkserver4"
+    links:
+      - mfsmaster
+    networks:
+      moosefsnet:
+        ipv4_address: "172.20.0.14"
+    volumes:
+            - ./data/cs4/hdd0:/mnt/hdd0
+            - ./data/cs4/metadata:/var/lib/mfs
+            - ./data/cs4/config:/etc/mfs
+    depends_on:
+      - mfsmaster
+  # This client will write 1M file on MooseFS cluster each time
+  mfsclient-write:
+    build: ./moosefs-client
+    container_name: "mfsclient-write"
+    command: "bash -c 'mfsmount -H mfsmaster /mnt/moosefs ; sleep 1 ; dd if=/dev/urandom of=/mnt/moosefs/file.bin bs=1M count=1 ; sync ; umount /mnt/moosefs'"
     cap_add:
       - SYS_ADMIN
     devices:
@@ -25,77 +102,34 @@ services:
       - mfsmaster
     networks:
       moosefsnet:
-        ipv4_address: "172.20.0.5"
+        ipv4_address: "172.20.0.100"
     depends_on:
       - mfsmaster
-  mfschunkserver1:
-    image: moosefs/chunkserver  #use GitHub version
-    # build: ./moosefs-chunkserver  #use local version
-    container_name: "mfschunkserver1"
-    environment:
-      - LABELS=M
-      - SIZE=10
+
+  mfsclient:
+    build: ./moosefs-client
+    container_name: "mfsclient"
+    command: "mfsmount -f -H mfsmaster /mnt/moosefs"
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    security_opt:
+      - apparmor:unconfined
+    stdin_open: true
+    tty: true
     links:
       - mfsmaster
     networks:
       moosefsnet:
-        ipv4_address: "172.20.0.11"
-    volumes:
-            - ./data/cs1_hdd0:/mnt/hdd0
+        ipv4_address: "172.20.0.101"
     depends_on:
       - mfsmaster
-  mfschunkserver2:
-    image: moosefs/chunkserver  #use GitHub version
-    # build: ./moosefs-chunkserver  #use local version
-    container_name: "mfschunkserver2"
-    environment:
-      - LABELS=MB
-      - SIZE=10
-    links:
-      - mfsmaster
-    networks:
-      moosefsnet:
-        ipv4_address: "172.20.0.12"
-    volumes:
-            - ./data/cs2_hdd0:/mnt/hdd0
-    depends_on:
-      - mfsmaster
-  mfschunkserver3:
-    image: moosefs/chunkserver  #use GitHub version
-    # build: ./moosefs-chunkserver  #use local version
-    container_name: "mfschunkserver3"
-    environment:
-      - LABELS=MB
-      - SIZE=10
-    links:
-      - mfsmaster
-    networks:
-      moosefsnet:
-        ipv4_address: "172.20.0.13"
-    volumes:
-            - ./data/cs3_hdd0:/mnt/hdd0
-    depends_on:
-      - mfsmaster
-  mfschunkserver4:
-    image: moosefs/chunkserver  #use GitHub version
-    # build: ./moosefs-chunkserver  #use local version
-    container_name: "mfschunkserver4"
-    environment:
-      - LABELS=B
-      - SIZE=10
-    links:
-      - mfsmaster
-    networks:
-      moosefsnet:
-        ipv4_address: "172.20.0.14"
-    volumes:
-            - ./data/cs4_hdd0:/mnt/hdd0
-    depends_on:
-      - mfsmaster
+
 networks:
   moosefsnet:
     driver: bridge
     ipam:
      config:
-       - subnet: 172.20.0.0/16
+       - subnet: 172.20.0.0/24
          gateway: 172.20.0.1

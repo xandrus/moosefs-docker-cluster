@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y wget gnupg2 python3
 RUN wget -O - http://ppa.moosefs.com/moosefs.key 2>/dev/null | apt-key add - 2>/dev/null
 RUN echo "deb http://ppa.moosefs.com/moosefs-3/apt/debian/buster buster main" > /etc/apt/sources.list.d/moosefs.list
 
-# Install MooseFS master and CGI
-RUN apt-get update && apt-get install -y moosefs-master moosefs-cli
+# Install MooseFS CGI
+RUN apt-get update && apt-get install -y moosefs-cgi moosefs-cgiserv moosefs-cli
 
 # Expose ports
-EXPOSE 9419 9420 9421 9422
+EXPOSE 9425
 
-CMD ["mfsmaster", "-f"]
+CMD ["mfscgiserv", "-f"]
